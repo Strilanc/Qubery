@@ -7,9 +7,8 @@ Utility methods and classes related to rotations.
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
 import cmath
-import numpy as np
 import math
-import geom
+import numpy as np
 from quaternion import *
 
 
@@ -358,7 +357,6 @@ def unitary_lerp(u1, u2, t):
     p3 = cmath.exp(phase_angle_3 * 1j)
 
     return n3 * p3
-
 
 
 class Rotation(object):

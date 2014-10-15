@@ -5,10 +5,12 @@ Image related utility methods used by cube finding program.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
+
 import cv2
+
 from geom import *
-import cube
 import rotation
+import cube
 
 
 def draw_lines(monitor, line_segments, color=(0, 255, 0), end_point_color=(0, 255, 0)):

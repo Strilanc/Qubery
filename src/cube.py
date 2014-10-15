@@ -5,9 +5,11 @@ Classes and utilities related to representing and tracking the orientation of a 
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
-import numpy as np
-from rotation import Rotation
 import math
+
+import numpy as np
+
+from rotation import Rotation
 
 
 class Side(object):

@@ -5,11 +5,13 @@ Cube finding program.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
+
 import cv2
-import numpy as np
+
 import imag
-import cube
 from rotation import *
+import cube
+
 
 capture = None or cv2.VideoCapture(1)
 frame = None
