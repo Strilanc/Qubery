@@ -577,7 +577,7 @@ def avg(p, q):
     return (p[0] + q[0]) / 2, (p[1] + q[1]) / 2
 
 
-def winded(p1, p2, p3, p4):
+def winded(points):
     """
     Returns the same points, but sorted into a clockwise order (as long as no point is inside the other three).
 
@@ -586,8 +586,8 @@ def winded(p1, p2, p3, p4):
     :param p3: An (x,y) point.
     :param p4: An (x,y) point.
     """
-    mid = avg(avg(p1, p2), avg(p3, p4))
-    return sorted([p1, p2, p3, p4], key=lambda p: vector_angle(vector_dif(mid, p)))
+    mid = np.average(np.array(points, np.float32), axis=0)
+    return sorted(points, key=lambda p: vector_angle(vector_dif(mid, p)))
 
 
 def partial_sums(items):

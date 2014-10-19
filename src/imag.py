@@ -582,7 +582,7 @@ def measure_checkerboard_color_inside(frame, corners):
     standard_corners = np.float32([[v, v], [u, v], [u, u], [v, u]])
 
     corners = np.float32(corners)
-    corners = np.array(winded(corners[0], corners[1], corners[2], corners[3]))
+    corners = np.array(winded(corners))
 
     perspective = cv2.getPerspectiveTransform(corners, standard_corners)
     normalized = cv2.warpPerspective(frame, perspective, (d, d))
@@ -654,10 +654,10 @@ def find_checkerboard_cube_faces(input_frame, draw_frame):
 
         color_pair = measure_checkerboard_color_inside(input_frame, diag_corners)
         side = cube.classify_color_pair_as_side(color_pair)
-        is_top_right_darker = np.average(color_pair[0]) < np.average(color_pair[1])
+        is_top_right_darker = np.max(color_pair[0]) > np.max(color_pair[1])
 
         mid = np.average(diag_corners, axis=0)
-        right_topward_corner = winded(diag_corners[0], diag_corners[1], diag_corners[2], diag_corners[3])[0]
+        right_topward_corner = winded(diag_corners)[0]
         turns = vector_angle(vector_dif(right_topward_corner, mid))/math.pi/2 - 0.125
         pose = cube.PoseMeasurement(cube.FrontMeasurement(side, is_top_right_darker),
                                     turns,
