@@ -15,33 +15,18 @@ import cube
 
 
 capture = None or cv2.VideoCapture(1)
+if not capture.isOpened():
+    raise RuntimeError("Failed to open video capture.")
 frame = None
-
-track = cube.PoseTrack.Empty
-interop = Rotation().as_pauli_operation()
-
 
 def scale_around(points, factor, center):
     return [center + (pt-center)*factor for pt in points]
 
 
-def draw_tracked_pose(tracked_pose, draw_frame):
+def draw_tracked_pose_top(tracked_pose, draw_frame):
     pose_measurement = tracked_pose.last_pose_measurement
     ordered_corners = np.array(geom.winded(pose_measurement.corners), np.float32)
     mid = pose_measurement.center
-
-    # fill part of corners with colors from measured side
-    for corner_index in range(4):
-        side1 = (ordered_corners[corner_index] + ordered_corners[(corner_index + 1) % 4])/2
-        side2 = (ordered_corners[corner_index] + ordered_corners[(corner_index - 1) % 4])/2
-        corner_contour = np.array(scale_around(
-            [mid, side1, ordered_corners[corner_index], side2],
-            0.5,
-            mid), np.int32)
-        clr = pose_measurement.front_measurement.current_front.color(
-            is_darker=(corner_index % 2 == 0) != pose_measurement.front_measurement.is_top_right_darker)
-        cv2.drawContours(draw_frame, [corner_contour], 0, clr, -1)
-
 
     # show top, based on tracking
     if tracked_pose.stable_pose_measurement == tracked_pose.last_pose_measurement:
@@ -62,9 +47,69 @@ def draw_tracked_pose(tracked_pose, draw_frame):
         cv2.drawContours(draw_frame, [right_contour], 0, right_color, -1)
         cv2.drawContours(draw_frame, [np.array(scale_around(upside, 0.5, mid), np.int32)], 0, (0, 255, 255), 1)
 
+
+def draw_pose(pose_measurement, draw_frame):
+    ordered_corners = np.array(geom.winded(pose_measurement.corners), np.float32)
+    mid = pose_measurement.center
+
+    # fill part of corners with colors from measured side
+    for corner_index in range(4):
+        side1 = (ordered_corners[corner_index] + ordered_corners[(corner_index + 1) % 4])/2
+        side2 = (ordered_corners[corner_index] + ordered_corners[(corner_index - 1) % 4])/2
+        corner_contour = np.array(scale_around(
+            [mid, side1, ordered_corners[corner_index], side2],
+            0.5,
+            mid), np.int32)
+        clr = pose_measurement.front_measurement.current_front.color(
+            is_darker=(corner_index % 2 == 0) != pose_measurement.front_measurement.is_top_right_darker)
+        cv2.drawContours(draw_frame, [corner_contour], 0, clr, -1)
+
     # yellow border
     cv2.drawContours(draw_frame, [np.array(scale_around(ordered_corners, 0.5, mid), np.int32)], 0, (0, 255, 255), 1)
 
+
+class TrackSquare:
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.track = cube.PoseTrack.Empty
+        self.is_tracking = False
+        self.op = Rotation().as_pauli_operation()
+
+    def update(self, pose_measurements):
+        matching = [e for e in pose_measurements
+                    if self.x <= e.center[0] <= self.x + self.w
+                    if self.y <= e.center[1] <= self.y + self.h]
+        self.op = unitary_lerp(self.op, self.track.quantum_operation(), 0.5)
+        self.is_tracking = len(matching) > 0
+        if len(matching) > 0:
+            self.track = self.track.then(matching[0])
+
+    def draw(self, draw_frame, s):
+        if self.is_tracking:
+            draw_tracked_pose_top(self.track, draw_frame)
+        cv2.rectangle(drawFrame, (self.x, self.y), (self.x + s*2, self.y + s*2), (0, 0, 0), -1)
+        for i in range(2):
+            c = self.op[i, 0]
+            p = (self.x + s, self.y + s + s*2*i)
+            p2 = (int(round(self.x + s + c.real*s)), int(round(self.y + s + s*2*i + c.imag*s)))
+            cv2.circle(draw_frame, p, s, (150, 150, 150))
+            cv2.circle(draw_frame, p, int(round(np.abs(c * s))), (0, 255, 255), -1)
+            cv2.line(draw_frame, p, p2, (0, 255, 0), 2)
+        #print track.rotations
+        #print "        " + str(np.array([color1, color2], np.int32).tolist()) + ",\\"
+        #va, vb, vc, vd = interop[0,0],interop[0,1],interop[1,0],interop[1,1]
+        #print "[|%s\n           %s|\n |%s\n           %s|]" % (Quaternion(round(va.real, 3), round(va.imag, 3)),
+        #                               Quaternion(round(vb.real, 3), round(vb.imag, 3)),
+        #                               Quaternion(round(vc.real, 3), round(vc.imag, 3)),
+        #                               Quaternion(round(vd.real, 3), round(vd.imag, 3)))
+        cv2.rectangle(drawFrame, (self.x, self.y), (self.x + self.w, self.y + self.h), (255, 255, 255), 1)
+
+margin = 1
+size = 50
+tracks = [TrackSquare(margin + size*i, 50, size - margin*2, size*2) for i in range(4)]
 
 while True:
     # Read next frame
@@ -77,29 +122,13 @@ while True:
     frame = cv2.resize(frame, (W, H))
 
     drawFrame = np.copy(frame)
-    for pose in imag.find_checkerboard_cube_faces(frame, drawFrame):
+    pose_measurements = imag.find_checkerboard_cube_faces(frame, drawFrame)
+    for pose in pose_measurements:
+        draw_pose(pose, drawFrame)
+    for tracked in tracks:
+        tracked.update(pose_measurements)
+        tracked.draw(drawFrame, 5)
 
-        track = track.then(pose)
-        draw_tracked_pose(track, drawFrame)
-        interop = unitary_lerp(interop, track.quantum_operation(), 0.75)
-
-        #print track.rotations
-        #print "        " + str(np.array([color1, color2], np.int32).tolist()) + ",\\"
-        #va, vb, vc, vd = interop[0,0],interop[0,1],interop[1,0],interop[1,1]
-        #print "[|%s\n           %s|\n |%s\n           %s|]" % (Quaternion(round(va.real, 3), round(va.imag, 3)),
-        #                               Quaternion(round(vb.real, 3), round(vb.imag, 3)),
-        #                               Quaternion(round(vc.real, 3), round(vc.imag, 3)),
-        #                               Quaternion(round(vd.real, 3), round(vd.imag, 3)))
-
-    s = 10
-    cv2.rectangle(drawFrame, (s, s), (s*3, s*5), (0, 0, 0), -1)
-    for i in range(2):
-        c = interop[i, 0]
-        p = (s*2, s*2 + s*2*i)
-        p2 = (int(round(s*2 + c.real*s)), int(round(s*2 + s*2*i + c.imag*s)))
-        cv2.circle(drawFrame, p, s, (150, 150, 150))
-        cv2.circle(drawFrame, p, int(round(np.abs(c * s))), (0, 255, 255), -1)
-        cv2.line(drawFrame, p, p2, (0, 255, 0), 2)
     cv2.imshow('debug', cv2.resize(drawFrame, (W*3, H*3)))
 
 
