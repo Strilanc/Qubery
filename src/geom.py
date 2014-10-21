@@ -626,3 +626,33 @@ def cycle_windows(cycle_list, span):
         raise ValueError("span > len(cycle_list)")
     return list([cycle_list[i:i+span] if i + span <= n else cycle_list[i:n] + cycle_list[0:i+span-n]
                  for i in range(n)])
+
+
+def controlled_by_next_qbit(m):
+    """
+    >>> (controlled_by_next_qbit(\
+            np.mat([[2]]))\
+        == np.mat([[1, 0], [0, 2]])).all()
+    True
+    >>> (controlled_by_next_qbit(np.mat(\
+            [[2, 3, 5, 7],\
+             [11, 13, 17, 19],\
+             [23, 29, 31, 37],\
+             [41, 43, 47, 51]]))\
+        == np.mat(\
+            [[1, 0, 0, 0, 0, 0, 0, 0],\
+             [0, 1, 0, 0, 0, 0, 0, 0],\
+             [0, 0, 1, 0, 0, 0, 0, 0],\
+             [0, 0, 0, 1, 0, 0, 0, 0],\
+             [0, 0, 0, 0, 2, 3, 5, 7],\
+             [0, 0, 0, 0, 11, 13, 17, 19],\
+             [0, 0, 0, 0, 23, 29, 31, 37],\
+             [0, 0, 0, 0, 41, 43, 47, 51]])).all()
+    True
+    """
+    d = m.shape[0]
+    return np.mat([[m[i - d, j - d] if i >= d and j >= d
+                    else 1 if i == j
+                    else 0
+                    for j in range(2*d)]
+                   for i in range(2*d)])

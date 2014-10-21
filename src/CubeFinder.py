@@ -7,6 +7,7 @@ Cube finding program.
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
 
 import cv2
+import itertools
 import geom
 
 import imag
@@ -69,13 +70,16 @@ def draw_pose(pose_measurement, draw_frame):
 
 
 class TrackSquare:
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h, control_x, control_y):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
+        self.control_x = control_x
+        self.control_y = control_y
         self.track = cube.PoseTrack.Empty
         self.is_tracking = False
+        self.is_controlled = False
         self.op = Rotation().as_pauli_operation()
 
     def update(self, pose_measurements):
@@ -85,7 +89,20 @@ class TrackSquare:
         self.op = unitary_lerp(self.op, self.track.quantum_operation(), 0.5)
         self.is_tracking = len(matching) > 0
         if len(matching) > 0:
-            self.track = self.track.then(matching[0])
+            pose = matching[0]
+            self.track = self.track.then(pose)
+            if self.track.stable_pose_measurement == pose:
+                self.is_controlled = False
+        else:
+            controls = [e for e in pose_measurements
+                        if self.control_x <= e.center[0] <= self.control_x + self.w
+                        if self.control_y <= e.center[1] <= self.control_y + self.h]
+            if len(controls) > 0:
+                control_pose = controls[0]
+                self.track = self.track.then(control_pose)
+                self.is_tracking = True
+                if self.track.stable_pose_measurement == control_pose:
+                    self.is_controlled = True
 
     def draw(self, draw_frame, s):
         if self.is_tracking:
@@ -105,11 +122,21 @@ class TrackSquare:
         #                               Quaternion(round(vb.real, 3), round(vb.imag, 3)),
         #                               Quaternion(round(vc.real, 3), round(vc.imag, 3)),
         #                               Quaternion(round(vd.real, 3), round(vd.imag, 3)))
-        cv2.rectangle(drawFrame, (self.x, self.y), (self.x + self.w, self.y + self.h), (255, 255, 255), 1)
+        cv2.rectangle(drawFrame,
+                      (self.control_x, self.control_y),
+                      (self.control_x + self.w, self.control_y + self.h),
+                      (0, 0, 0) if not self.is_controlled else (255, 255, 255),
+                      1)
+        cv2.rectangle(drawFrame,
+                      (self.x, self.y),
+                      (self.x + self.w, self.y + self.h),
+                      (0, 0, 0) if self.is_controlled else (255, 255, 255),
+                      1)
+
 
 margin = 1
 size = 50
-tracks = [TrackSquare(margin + size*i, 50, size - margin*2, size*2) for i in range(4)]
+tracks = [TrackSquare(margin + size*i, 50, size - margin*2, size, margin + size*i, 100) for i in range(4)]
 
 while True:
     # Read next frame
@@ -129,8 +156,25 @@ while True:
         tracked.update(pose_measurements)
         tracked.draw(drawFrame, 5)
 
-    cv2.imshow('debug', cv2.resize(drawFrame, (W*3, H*3)))
+    opyops = []
+    for t in tracks:
+        for r in t.track.rotations:
+            q = r.as_pauli_operation()
+            m = np.identity(1, np.float32)
+            for t2 in tracks.__reversed__():
+                if t == t2:
+                    m = geom.tensor_product(m, r.as_pauli_operation())
+                elif t2.is_controlled:
+                    print "controlled"
+                    m = geom.controlled_by_next_qbit(m)
+                else:
+                    m = geom.tensor_product(m, np.identity(2, np.float32))
+            opyops.append(m)
+        t.track.rotations = []
+    if len(opyops) > 0:
+        print reduce(lambda e1, e2: e2 * e1, opyops).__repr__()
 
+    cv2.imshow('debug', cv2.resize(drawFrame, (W*3, H*3)))
 
     if cv2.waitKey(1) == 27 or capture is None:
         break
