@@ -656,3 +656,33 @@ def controlled_by_next_qbit(m):
                     else 0
                     for j in range(2*d)]
                    for i in range(2*d)])
+
+
+def controlled_by_prev_qbit(m):
+    """
+    >>> (controlled_by_prev_qbit(\
+            np.mat([[2]]))\
+        == np.mat([[1, 0], [0, 2]])).all()
+    True
+    >>> (controlled_by_prev_qbit(np.mat(\
+            [[2, 3, 5, 7],\
+             [11, 13, 17, 19],\
+             [23, 29, 31, 37],\
+             [41, 43, 47, 51]]))\
+        == np.mat(\
+            [[1, 0, 0, 0, 0, 0, 0, 0],\
+             [0, 2, 0, 3, 0, 5, 0, 7],\
+             [0, 0, 1, 0, 0, 0, 0, 0],\
+             [0,11, 0,13, 0,17, 0,19],\
+             [0, 0, 0, 0, 1, 0, 0, 0],\
+             [0,23, 0,29, 0,31, 0,37],\
+             [0, 0, 0, 0, 0, 0, 1, 0],\
+             [0,41, 0,43, 0,47, 0,51]])).all()
+    True
+    """
+    d = m.shape[0]
+    return np.mat([[m[i // 2, j // 2] if i % 2 == 1 and j % 2 == 1
+                    else 1 if i == j
+                    else 0
+                    for j in range(2*d)]
+                   for i in range(2*d)])

@@ -15,7 +15,7 @@ from rotation import *
 import cube
 
 
-capture = None or cv2.VideoCapture(1)
+capture = None or cv2.VideoCapture(0)
 if not capture.isOpened():
     raise RuntimeError("Failed to open video capture.")
 frame = None
@@ -88,7 +88,7 @@ class TrackSquare:
                     if self.y <= e.center[1] <= self.y + self.h]
         self.op = unitary_lerp(self.op, self.track.quantum_operation(), 0.5)
         self.is_tracking = len(matching) > 0
-        if len(matching) > 0:
+        if len(matching) == 1:
             pose = matching[0]
             self.track = self.track.then(pose)
             if self.track.stable_pose_measurement == pose:
@@ -97,7 +97,7 @@ class TrackSquare:
             controls = [e for e in pose_measurements
                         if self.control_x <= e.center[0] <= self.control_x + self.w
                         if self.control_y <= e.center[1] <= self.control_y + self.h]
-            if len(controls) > 0:
+            if len(controls) == 1:
                 control_pose = controls[0]
                 self.track = self.track.then(control_pose)
                 self.is_tracking = True
@@ -135,8 +135,25 @@ class TrackSquare:
 
 
 margin = 1
-size = 50
-tracks = [TrackSquare(margin + size*i, 50, size - margin*2, size, margin + size*i, 100) for i in range(4)]
+size = 75
+tracks = [TrackSquare(margin + size*i, 50, size - margin*2, 50, margin + size*i, 100) for i in range(4)]
+
+
+def controlled_operation(operation_matrix, index, is_controls):
+
+    n = len(is_controls)
+    if not (0 <= index < n):
+        raise ValueError("Invalid operation index.")
+    is_controls = [i != index and is_controls[i] for i in range(n)]
+
+    m = operation_matrix
+    id = np.identity(2)
+    for c in is_controls[index+1:]:
+        m = geom.controlled_by_next_qbit(m) if c else geom.tensor_product(m, id)
+    for c in is_controls[:index].__reversed__():
+        m = geom.controlled_by_prev_qbit(m) if c else geom.tensor_product(id, m)
+    return m
+
 
 while True:
     # Read next frame
@@ -144,8 +161,8 @@ while True:
     H, W = frame.shape[:2]
 
     # Shrink and mirror
-    reduction = 3
-    H, W = H // reduction, W // reduction
+    reduction = 12
+    H, W = (H // reduction)*2, (W // reduction)*2
     frame = cv2.resize(frame, (W, H))
 
     drawFrame = np.copy(frame)
@@ -157,22 +174,16 @@ while True:
         tracked.draw(drawFrame, 5)
 
     opyops = []
-    for t in tracks:
+    for i in range(len(tracks)):
+        t = tracks[i]
         for r in t.track.rotations:
             q = r.as_pauli_operation()
-            m = np.identity(1, np.float32)
-            for t2 in tracks.__reversed__():
-                if t == t2:
-                    m = geom.tensor_product(m, r.as_pauli_operation())
-                elif t2.is_controlled:
-                    print "controlled"
-                    m = geom.controlled_by_next_qbit(m)
-                else:
-                    m = geom.tensor_product(m, np.identity(2, np.float32))
+            m = controlled_operation(r.as_pauli_operation(), i, [c.is_controlled for c in tracks])
             opyops.append(m)
         t.track.rotations = []
     if len(opyops) > 0:
-        print reduce(lambda e1, e2: e2 * e1, opyops).__repr__()
+        r = reduce(lambda e1, e2: e2 * e1, opyops).tolist()
+        print string.join(["| " + string.join([str(int(e.real)) + "         " if e == int(e.real) else str(e) for e in c], " ") + " |\n" for c in r], "")
 
     cv2.imshow('debug', cv2.resize(drawFrame, (W*3, H*3)))
 
