@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# coding=utf-8
 
 """
 Geometric utility methods used by cube finding program.
@@ -7,6 +8,7 @@ Geometric utility methods used by cube finding program.
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
 import numpy as np
 import math
+import string
 
 
 def tensor_product(m1, m2):
@@ -47,10 +49,7 @@ def tensor_power(m, p):
             [0, 1, 0, 0],
             [1, 0, 0, 0]])
     """
-    total = np.mat([[1]])
-    for i in range(p):
-        total = tensor_product(total, m)
-    return total
+    return reduce(tensor_product, [m for _ in range(p)], np.mat([[1]]))
 
 
 def sign(n):
@@ -214,26 +213,6 @@ def unit_dot(u, v):
     return dot(u, v) / vector_length(u) / vector_length(v)
 
 
-def are_vectors_approximately_perpendicular(u, v, error=0.0001):
-    """
-    Determines if two vector are perpendicular, or close to perpendicular.
-
-    :param u: An (x,y) vector.
-    :param v: An (x,y) vector.
-    :param error: How large the unit dot product can be while still determining the vectors are perpendicular.
-
-    >>> are_vectors_approximately_perpendicular((1, 1), (1, -1))
-    True
-    >>> are_vectors_approximately_perpendicular((1, 1), (2, -2))
-    True
-    >>> are_vectors_approximately_perpendicular((1, 1), (2, -3))
-    False
-    >>> are_vectors_approximately_perpendicular((1, 1), (2, 2))
-    False
-    """
-    return abs(unit_dot(u, v)) <= error
-
-
 def point_distance(p, q):
     """
     Returns the euclidean distance between two points.
@@ -276,10 +255,10 @@ def ratio_distance(v1, v2):
 
 def lerp(r, s, t):
     """
-    Linearly interpolates between two vales.
+    Linearly interpolates between two values.
 
-    :param r: The resulting number when t is zero.
-    :param s: The resulting number when t is one.
+    :param r: The result when t is zero.
+    :param s: The result when t is one.
     :param t: The lerp slider number.
 
     >>> lerp(3, 7, 0)
@@ -292,6 +271,8 @@ def lerp(r, s, t):
     11
     >>> lerp(3, 7, 0.5)
     5.0
+    >>> (lerp(np.array([1, 2, 3]), np.array([16, 25, 35]), 0.5) == np.array([8.5, 13.5, 19])).all()
+    True
     """
     return r + (s - r) * t
 
@@ -316,7 +297,7 @@ def offset_point_by_vector_weighted(p, d, w):
 
     :param p: The (x, y) point being offset.
     :param d: The (x, y) vector being scaled and added to the point.
-    :param w: The numberic factor used to scale the vector.
+    :param w: The numeric factor used to scale the vector.
 
     >>> offset_point_by_vector_weighted((2, 3), (5, 7), 11) == (57, 80)
     True
@@ -581,10 +562,7 @@ def winded(points):
     """
     Returns the same points, but sorted into a clockwise order (as long as no point is inside the other three).
 
-    :param p1: An (x,y) point.
-    :param p2: An (x,y) point.
-    :param p3: An (x,y) point.
-    :param p4: An (x,y) point.
+    :param points: A list of (x,y) points.
     """
     mid = np.average(np.array(points, np.float32), axis=0)
     return sorted(points, key=lambda p: vector_angle(vector_dif(mid, p)))
@@ -630,6 +608,10 @@ def cycle_windows(cycle_list, span):
 
 def controlled_by_next_qbit(m):
     """
+    Expands a quantum operation to apply to one more qubit, that comes after the wires it currently applies to,
+    with the caveat that it is controlled by the new qubit. The operation only applies when the new qubit is true.
+
+    :param m: A numpy complex matrix.
     >>> (controlled_by_next_qbit(\
             np.mat([[2]]))\
         == np.mat([[1, 0], [0, 2]])).all()
@@ -660,6 +642,10 @@ def controlled_by_next_qbit(m):
 
 def controlled_by_prev_qbit(m):
     """
+    Expands a quantum operation to apply to one more qubit, that comes before the wires it currently applies to,
+    with the caveat that it is controlled by the new qubit. The operation only applies when the new qubit is true.
+
+    :param m: A numpy complex matrix.
     >>> (controlled_by_prev_qbit(\
             np.mat([[2]]))\
         == np.mat([[1, 0], [0, 2]])).all()
@@ -686,3 +672,127 @@ def controlled_by_prev_qbit(m):
                     else 0
                     for j in range(2*d)]
                    for i in range(2*d)])
+
+
+def quantum_complex_str(c):
+    """
+    Returns a text representation of the given complex number. Abbreviates values made up of halves, like 1/2 and
+    (1+i)/2, into single unicode arrow characters with the corresponding direction. Shrinks zero into a dot. Avoids
+    some cases of unnecessary ".0" and "1i".
+    :param c: A complex number.
+    """
+    if c == 0:
+        return "·"
+    if c == 1j:
+        return "i"
+    if c == -1j:
+        return "-i"
+    if c == -1/2:
+        return "←"
+    if c == 1j/2:
+        return "↑"
+    if c == 1/2:
+        return "→"
+    if c == -1j/2:
+        return "↓"
+    if c == (-1 + 1j)/2:
+        return "↖"
+    if c == (1 + 1j)/2:
+        return "↗"
+    if c == (1 - 1j)/2:
+        return "↘"
+    if c == (-1 - 1j)/2:
+        return "↙"
+    if c == int(c.real):
+        return str(int(c.real))
+    if c == int(c.imag)*1j:
+        return str(int(c.imag)) + "i"
+    if c.imag == 0:
+        return str(c.real)
+    if c.real == 0:
+        return str(c.imag) + "i"
+    return str(c)
+
+
+def quantum_operation_str(op):
+    """
+    Returns a text representation of the matrix corresponding to a quantum operation. Abbreviates commonly occurring
+    complex numbers into single characters to keep the matrices well spaced.
+    :param op: A numpy complex matrix.
+
+    >>> expected = "┌         ┐\\n" +\
+                   "│ 1 i -1 -i │\\n" +\
+                   "│ → ↑ ← ↓ │\\n" +\
+                   "│ ↗ ↖ ↙ ↘ │\\n" +\
+                   "│ · · · · │\\n" +\
+                   "└         ┘"
+    >>> quantum_operation_str(np.mat([\
+        [1, 1j, -1, -1j],\
+        [0.5, 0.5j, -0.5, -0.5j],\
+        [0.5+0.5j, -0.5+0.5j, -0.5-0.5j, 0.5-0.5j],\
+        [0, 0, 0, 0]])) == expected
+    True
+    """
+    op = op.tolist()
+    row_reps = ["│ " + string.join(map(quantum_complex_str, col)) + " │" for col in op]
+    n = len(op)*2 + 3
+    top_row = "┌" + " " * (n-2) + "┐"
+    bottom_row = "└" + " " * (n-2) + "┘"
+    return string.join(
+        [top_row] + row_reps + [bottom_row],
+        "\n")
+
+
+def expand_quantum_operation(operation, qubit_control_toggles, index):
+    """
+    Expands a quantum operation so that it applies to more qubits. The original new qubits are placed before and after
+    the operation based on its index. The qubit_control_toggles determine if each corresponding qubit should control the
+    operation (so it only applies when that qubit is true) or not.
+    :param operation: A complex numpy matrix.
+    :param qubit_control_toggles: A list of booleans. Determines the number of extra qubits the resulting operation
+        applies to, and whether each controls the resulting operation. The toggle corresponding to the starting
+        operation's index is ignored.
+    :param index: An index in the qubit_control_toggles list. Determines the positioning of the current operation,
+        which determines how many qubits are before the qubits it should apply to and (together with the length of the
+        length of the toggle list) how many qubits are after.
+
+    >>> (expand_quantum_operation(np.mat([[2, 3], [4, 5]]), [True, None, False], 1) ==\
+        np.mat([[1, 0, 0, 0, 0, 0, 0, 0],\
+                [0, 2, 0, 3, 0, 0, 0, 0],\
+                [0, 0, 1, 0, 0, 0, 0, 0],\
+                [0, 4, 0, 5, 0, 0, 0, 0],\
+                [0, 0, 0, 0, 1, 0, 0, 0],\
+                [0, 0, 0, 0, 0, 2, 0, 3],\
+                [0, 0, 0, 0, 0, 0, 1, 0],\
+                [0, 0, 0, 0, 0, 4, 0, 5]])).all()
+    True
+    >>> (expand_quantum_operation(np.mat([[2, 3], [4, 5]]), [False, None, True], 1) ==\
+        np.mat([[1, 0, 0, 0, 0, 0, 0, 0],\
+                [0, 1, 0, 0, 0, 0, 0, 0],\
+                [0, 0, 1, 0, 0, 0, 0, 0],\
+                [0, 0, 0, 1, 0, 0, 0, 0],\
+                [0, 0, 0, 0, 2, 0, 3, 0],\
+                [0, 0, 0, 0, 0, 2, 0, 3],\
+                [0, 0, 0, 0, 4, 0, 5, 0],\
+                [0, 0, 0, 0, 0, 4, 0, 5]])).all()
+    True
+    """
+
+    n = len(qubit_control_toggles)
+    if not (0 <= index < n):
+        raise ValueError("Invalid operation index.")
+
+    acc = operation
+    id2 = np.identity(2)
+
+    for is_control in qubit_control_toggles[index+1:]:
+        acc = controlled_by_next_qbit(acc)\
+            if is_control\
+            else tensor_product(id2, acc)
+
+    for is_control in qubit_control_toggles[:index].__reversed__():
+        acc = controlled_by_prev_qbit(acc)\
+            if is_control\
+            else tensor_product(acc, id2)
+
+    return acc

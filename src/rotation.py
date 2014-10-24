@@ -6,10 +6,10 @@ Utility methods and classes related to rotations.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
+from quaternion import *
 import cmath
 import math
 import numpy as np
-from quaternion import *
 
 
 tau = math.pi * 2

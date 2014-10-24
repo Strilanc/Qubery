@@ -1,14 +1,13 @@
 #!/usr/bin/python
+# coding=utf-8
 
 """
 Image related utility methods used by cube finding program.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
-
-import cv2
-
 from geom import *
+import cv2
 import rotation
 import cube
 

@@ -1,55 +1,76 @@
 #!/usr/bin/python
+# coding=utf-8
 
 """
 Cube finding program.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
-
-import cv2
-import itertools
-import geom
-
-import imag
 from rotation import *
+import cv2
 import cube
+import geom
+import imag
 
-
-capture = None or cv2.VideoCapture(0)
-if not capture.isOpened():
-    raise RuntimeError("Failed to open video capture.")
-frame = None
 
 def scale_around(points, factor, center):
-    return [center + (pt-center)*factor for pt in points]
+    """
+    Returns the same set of points, but proportionally closer or further from a center point.
+    Also they get rounded into integers because this method is used for drawing mostly.
+
+    :param points: numpy array of points to scale.
+    :param factor: Scaling factor.
+    :param center: Center point to scale around.
+    """
+    return np.array([geom.lerp(center, pt, factor) for pt in points], np.int32)
 
 
 def draw_tracked_pose_top(tracked_pose, draw_frame):
+    """
+    Draws the latest measured front face and the stable top face of a tracked pose measurement.
+
+    :param tracked_pose: The track to draw.
+    :param draw_frame: The image to draw the information into.
+    """
     pose_measurement = tracked_pose.last_pose_measurement
     ordered_corners = np.array(geom.winded(pose_measurement.corners), np.float32)
     mid = pose_measurement.center
 
-    # show top, based on tracking
-    if tracked_pose.stable_pose_measurement == tracked_pose.last_pose_measurement:
-        top_left = ordered_corners[2]
-        top_right = ordered_corners[3]
-        bottom_left = ordered_corners[1]
-        bottom_right = ordered_corners[0]
-        past_left = bottom_left + (top_left - bottom_left)*1.5
-        past_right = bottom_right + (top_right - bottom_right)*1.5
-        past_mid = (past_left + past_right)/2
-        top_mid = (top_left + top_right)/2
-        upside = [ordered_corners[2], past_left, past_right, ordered_corners[3]]
-        left_contour = np.array(scale_around([past_left, past_mid, top_mid, top_left], 0.5, mid), np.int32)
-        right_contour = np.array(scale_around([past_right, past_mid, top_mid, top_right], 0.5, mid), np.int32)
-        left_color = tracked_pose.facing.current_top.color(not pose_measurement.front_measurement.is_top_right_darker)
-        right_color = tracked_pose.facing.current_top.color(pose_measurement.front_measurement.is_top_right_darker)
-        cv2.drawContours(draw_frame, [left_contour], 0, left_color, -1)
-        cv2.drawContours(draw_frame, [right_contour], 0, right_color, -1)
-        cv2.drawContours(draw_frame, [np.array(scale_around(upside, 0.5, mid), np.int32)], 0, (0, 255, 255), 1)
+    # only show top side when tracking is stable
+    if tracked_pose.stable_pose_measurement != tracked_pose.last_pose_measurement:
+        return
+
+    bottom_right = ordered_corners[0]
+    bottom_left = ordered_corners[1]
+
+    top_left = ordered_corners[2]
+    top_right = ordered_corners[3]
+    top_mid = (top_left + top_right)/2
+
+    past_left = geom.lerp(bottom_left, top_left, 1.5)
+    past_right = geom.lerp(bottom_right, top_right, 1.5)
+    past_mid = (past_left + past_right)/2
+
+    whole_contour = scale_around([past_left, past_right, top_right, top_left], 0.5, mid)
+    left_contour = scale_around([past_left, past_mid, top_mid, top_left], 0.5, mid)
+    right_contour = scale_around([past_right, past_mid, top_mid, top_right], 0.5, mid)
+
+    left_color = tracked_pose.facing.current_top.color(not pose_measurement.front_measurement.is_top_right_darker)
+    right_color = tracked_pose.facing.current_top.color(pose_measurement.front_measurement.is_top_right_darker)
+    whole_color = (0, 255, 255)
+
+    cv2.drawContours(draw_frame, [left_contour], 0, left_color, -1)
+    cv2.drawContours(draw_frame, [right_contour], 0, right_color, -1)
+    cv2.drawContours(draw_frame, [whole_contour], 0, whole_color, 1)
 
 
 def draw_pose(pose_measurement, draw_frame):
+    """
+    Draws the front face of a pose measurement.
+
+    :param pose_measurement: The pose measurement to draw.
+    :param draw_frame: The image to draw the information into.
+    """
     ordered_corners = np.array(geom.winded(pose_measurement.corners), np.float32)
     mid = pose_measurement.center
 
@@ -57,139 +78,126 @@ def draw_pose(pose_measurement, draw_frame):
     for corner_index in range(4):
         side1 = (ordered_corners[corner_index] + ordered_corners[(corner_index + 1) % 4])/2
         side2 = (ordered_corners[corner_index] + ordered_corners[(corner_index - 1) % 4])/2
-        corner_contour = np.array(scale_around(
+        corner_contour = scale_around(
             [mid, side1, ordered_corners[corner_index], side2],
             0.5,
-            mid), np.int32)
+            mid)
         clr = pose_measurement.front_measurement.current_front.color(
             is_darker=(corner_index % 2 == 0) != pose_measurement.front_measurement.is_top_right_darker)
         cv2.drawContours(draw_frame, [corner_contour], 0, clr, -1)
 
     # yellow border
-    cv2.drawContours(draw_frame, [np.array(scale_around(ordered_corners, 0.5, mid), np.int32)], 0, (0, 255, 255), 1)
+    cv2.drawContours(draw_frame, [scale_around(ordered_corners, 0.5, mid)], 0, (0, 255, 255), 1)
 
 
-class TrackSquare:
-    def __init__(self, x, y, w, h, control_x, control_y):
+class TrackSquare(object):
+    """
+    An area corresponding to a qubit. Tracks checkerboard cube within for operations to apply.
+    """
+    def __init__(self, x, y, w, h):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
-        self.control_x = control_x
-        self.control_y = control_y
         self.track = cube.PoseTrack.Empty
         self.is_tracking = False
         self.is_controlled = False
         self.op = Rotation().as_pauli_operation()
 
     def update(self, pose_measurements):
-        matching = [e for e in pose_measurements
-                    if self.x <= e.center[0] <= self.x + self.w
-                    if self.y <= e.center[1] <= self.y + self.h]
-        self.op = unitary_lerp(self.op, self.track.quantum_operation(), 0.5)
-        self.is_tracking = len(matching) > 0
-        if len(matching) == 1:
-            pose = matching[0]
-            self.track = self.track.then(pose)
-            if self.track.stable_pose_measurement == pose:
-                self.is_controlled = False
-        else:
-            controls = [e for e in pose_measurements
-                        if self.control_x <= e.center[0] <= self.control_x + self.w
-                        if self.control_y <= e.center[1] <= self.control_y + self.h]
-            if len(controls) == 1:
-                control_pose = controls[0]
-                self.track = self.track.then(control_pose)
-                self.is_tracking = True
-                if self.track.stable_pose_measurement == control_pose:
-                    self.is_controlled = True
+        """
+        Performs tracking using the new set of pose measurements.
+        Updates this area's track using the single measurement in the tracking area (or else does nothing).
 
-    def draw(self, draw_frame, s):
+        :param pose_measurements: Probable checkerboard cube face locations.
+        """
+        matching = [pose_measurement for pose_measurement in pose_measurements
+                    if self.x <= pose_measurement.center[0] <= self.x + self.w
+                    if self.y <= pose_measurement.center[1] <= self.y + self.h]
+        self.op = unitary_lerp(self.op, self.track.quantum_operation(), 0.5)
+        self.is_tracking = len(matching) == 1
+        if self.is_tracking:
+            matched_pose = matching[0]
+            self.track = self.track.then(matched_pose)
+            if self.track.stable_pose_measurement == matched_pose:
+                self.is_controlled = matched_pose.center[1] >= self.y + self.h / 2
+
+    def draw(self, draw_frame, qubit_size):
+        """
+        Draws this tracking square as well as the tracked pose and qubit value within it (if any).
+
+        :param draw_frame: The image to draw into.
+        :param qubit_size: The radius of circles used to show the qubit's state.
+        """
         if self.is_tracking:
             draw_tracked_pose_top(self.track, draw_frame)
-        cv2.rectangle(drawFrame, (self.x, self.y), (self.x + s*2, self.y + s*2), (0, 0, 0), -1)
+        cv2.rectangle(draw_frame, (self.x, self.y), (self.x + qubit_size * 2, self.y + qubit_size * 2), (0, 0, 0), -1)
         for i in range(2):
             c = self.op[i, 0]
-            p = (self.x + s, self.y + s + s*2*i)
-            p2 = (int(round(self.x + s + c.real*s)), int(round(self.y + s + s*2*i + c.imag*s)))
-            cv2.circle(draw_frame, p, s, (150, 150, 150))
-            cv2.circle(draw_frame, p, int(round(np.abs(c * s))), (0, 255, 255), -1)
+            p = (self.x + qubit_size, self.y + qubit_size + qubit_size * 2 * i)
+            p2 = (int(round(self.x + qubit_size + c.real * qubit_size)),
+                  int(round(self.y + qubit_size + qubit_size * 2 * i + c.imag * qubit_size)))
+            cv2.circle(draw_frame, p, qubit_size, (150, 150, 150))
+            cv2.circle(draw_frame, p, int(round(np.abs(c * qubit_size))), (0, 255, 255), -1)
             cv2.line(draw_frame, p, p2, (0, 255, 0), 2)
-        #print track.rotations
-        #print "        " + str(np.array([color1, color2], np.int32).tolist()) + ",\\"
-        #va, vb, vc, vd = interop[0,0],interop[0,1],interop[1,0],interop[1,1]
-        #print "[|%s\n           %s|\n |%s\n           %s|]" % (Quaternion(round(va.real, 3), round(va.imag, 3)),
-        #                               Quaternion(round(vb.real, 3), round(vb.imag, 3)),
-        #                               Quaternion(round(vc.real, 3), round(vc.imag, 3)),
-        #                               Quaternion(round(vd.real, 3), round(vd.imag, 3)))
-        cv2.rectangle(drawFrame,
-                      (self.control_x, self.control_y),
-                      (self.control_x + self.w, self.control_y + self.h),
+        cv2.rectangle(draw_frame,
+                      (self.x, self.y + self.h // 2),
+                      (self.x + self.w, self.y + self.h),
                       (0, 0, 0) if not self.is_controlled else (255, 255, 255),
                       1)
-        cv2.rectangle(drawFrame,
+        cv2.rectangle(draw_frame,
                       (self.x, self.y),
-                      (self.x + self.w, self.y + self.h),
+                      (self.x + self.w, self.y + self.h // 2),
                       (0, 0, 0) if self.is_controlled else (255, 255, 255),
                       1)
 
 
-margin = 1
-size = 75
-tracks = [TrackSquare(margin + size*i, 50, size - margin*2, 50, margin + size*i, 100) for i in range(4)]
+def run_loop():
+    """
+    Read frame, process frame, repeat.
+    """
+    margin = 1
+    size = 75
+    tracks = [TrackSquare(margin + size*i, 50, size - margin*2, 100) for i in range(4)]
 
+    capture = cv2.VideoCapture(0)
+    if not capture.isOpened():
+        raise RuntimeError("Failed to open video capture.")
 
-def controlled_operation(operation_matrix, index, is_controls):
+    while True:
+        # Read next frame
+        _, frame = capture.read()
+        h, w = frame.shape[:2]
 
-    n = len(is_controls)
-    if not (0 <= index < n):
-        raise ValueError("Invalid operation index.")
-    is_controls = [i != index and is_controls[i] for i in range(n)]
+        # Shrink and mirror
+        reduction = 12
+        h, w = (h // reduction)*2, (w // reduction)*2
+        frame = cv2.resize(frame, (w, h))
 
-    m = operation_matrix
-    id = np.identity(2)
-    for c in is_controls[index+1:]:
-        m = geom.controlled_by_next_qbit(m) if c else geom.tensor_product(m, id)
-    for c in is_controls[:index].__reversed__():
-        m = geom.controlled_by_prev_qbit(m) if c else geom.tensor_product(id, m)
-    return m
+        draw_frame = np.copy(frame)
+        frame_pose_measurements = imag.find_checkerboard_cube_faces(frame, draw_frame)
+        for pose in frame_pose_measurements:
+            draw_pose(pose, draw_frame)
+        for tracked in tracks:
+            tracked.update(frame_pose_measurements)
+            tracked.draw(draw_frame, 5)
 
+        operations_to_apply = []
+        for i in range(len(tracks)):
+            t = tracks[i]
+            for r in t.track.rotations:
+                m = geom.expand_quantum_operation(r.as_pauli_operation(), [c.is_controlled for c in tracks], i)
+                operations_to_apply.append(m)
+            t.track.rotations = []
+        for r in operations_to_apply:
+            print geom.quantum_operation_str(r)
 
-while True:
-    # Read next frame
-    _, frame = capture.read()
-    H, W = frame.shape[:2]
+        cv2.imshow('debug', cv2.resize(draw_frame, (w*3, h*3)))
 
-    # Shrink and mirror
-    reduction = 12
-    H, W = (H // reduction)*2, (W // reduction)*2
-    frame = cv2.resize(frame, (W, H))
+        if cv2.waitKey(1) == 27 or capture is None:
+            break
 
-    drawFrame = np.copy(frame)
-    pose_measurements = imag.find_checkerboard_cube_faces(frame, drawFrame)
-    for pose in pose_measurements:
-        draw_pose(pose, drawFrame)
-    for tracked in tracks:
-        tracked.update(pose_measurements)
-        tracked.draw(drawFrame, 5)
-
-    opyops = []
-    for i in range(len(tracks)):
-        t = tracks[i]
-        for r in t.track.rotations:
-            q = r.as_pauli_operation()
-            m = controlled_operation(r.as_pauli_operation(), i, [c.is_controlled for c in tracks])
-            opyops.append(m)
-        t.track.rotations = []
-    if len(opyops) > 0:
-        r = reduce(lambda e1, e2: e2 * e1, opyops).tolist()
-        print string.join(["| " + string.join([str(int(e.real)) + "         " if e == int(e.real) else str(e) for e in c], " ") + " |\n" for c in r], "")
-
-    cv2.imshow('debug', cv2.resize(drawFrame, (W*3, H*3)))
-
-    if cv2.waitKey(1) == 27 or capture is None:
-        break
-
-cv2.destroyAllWindows()
-if capture is not None:
+    cv2.destroyAllWindows()
     capture.release()
+
+run_loop()
