@@ -56,7 +56,7 @@ Quordinating Operation Notes
 
 **Middle Column**
 
-    ─X──┬──ỹ─
+    ─X──┬─√ỹ─
     ────X────
     
     ┌         ┐
