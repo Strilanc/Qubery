@@ -11,6 +11,7 @@ import cv2
 import cube
 import geom
 import imag
+from gates import QuantumOperation
 
 
 def scale_around(points, factor, center):
@@ -164,6 +165,8 @@ def run_loop():
     if not capture.isOpened():
         raise RuntimeError("Failed to open video capture.")
 
+    operations_in_progress = []
+
     while True:
         # Read next frame
         _, frame = capture.read()
@@ -186,11 +189,10 @@ def run_loop():
         for i in range(len(tracks)):
             t = tracks[i]
             for r in t.track.rotations:
-                m = geom.expand_quantum_operation(r.as_pauli_operation(), [c.is_controlled for c in tracks], i)
-                operations_to_apply.append(m)
+                op = QuantumOperation(r.as_pauli_operation(), [c.is_controlled for c in tracks], i)
+                print op.__str__()
+                operations_in_progress.append(op)
             t.track.rotations = []
-        for r in operations_to_apply:
-            print geom.quantum_operation_str(r)
 
         cv2.imshow('debug', cv2.resize(draw_frame, (w*3, h*3)))
 
