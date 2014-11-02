@@ -8,8 +8,8 @@ Quordinating Operation Notes
 
 **Top Row**
 
-    ────X────
-    ────┴─√x̃─
+    ────X⃞───
+    ────┴─↑⃞─
     
     ┌         ┐
     │ ↖ 0 0 ↙ │
@@ -20,8 +20,8 @@ Quordinating Operation Notes
 
 **Middle Row**
 
-    √x̃──┬─√y─
-    ────X────
+    ─↑⃞─┬─→⃞─
+    ───X⃞───
     
     ┌         ┐
     │ ↓ ← → ↑ │
@@ -32,8 +32,8 @@ Quordinating Operation Notes
 
 **Bottom Row**
 
-    ─────┬─√x──
-    ─√y──Y─────
+    ────┬─↓⃞─
+    ─→⃞──Y⃞───
 
     ┌         ┐
     │ ← ← → ← │
@@ -44,8 +44,8 @@ Quordinating Operation Notes
 
 **Left Column**
 
-    ─√x──X─────
-    ─────┴─√x̃──
+    ─↓⃞─X⃞───
+    ───┴─↑⃞─
 
     ┌         ┐
     │ → ↑ → ↓ │
@@ -56,8 +56,8 @@ Quordinating Operation Notes
 
 **Middle Column**
 
-    ─X──┬─√ỹ─
-    ────X────
+    ─X⃞──┬─←⃞─
+    ────X⃞───
     
     ┌         ┐
     │ 0 ↘ ↘ 0 │
@@ -68,8 +68,8 @@ Quordinating Operation Notes
 
 **Right Column**
 
-    ─────Y─────
-    ─√x̃──┴──√ỹ─
+    ───Y⃞───
+    ─↑⃞─┴─←⃞─
     
     ┌         ┐
     │ ← → ↑ ↑ │
