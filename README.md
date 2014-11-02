@@ -8,8 +8,8 @@ Quordinating Operation Notes
 
 **Top Row**
 
-    ────X⃞───
-    ────┴─↑⃞─
+    ───X⃞───
+    ───┴─↑⃞─
     
     ┌         ┐
     │ ↖ 0 0 ↙ │
@@ -32,8 +32,8 @@ Quordinating Operation Notes
 
 **Bottom Row**
 
-    ────┬─↓⃞─
-    ─→⃞──Y⃞───
+    ───┬─↓⃞─
+    ─→⃞─Y⃞───
 
     ┌         ┐
     │ ← ← → ← │
