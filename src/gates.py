@@ -17,18 +17,15 @@ class QuantumOperation(object):
     A quantum operation that can be applied to one of several qubits, and controlled by other qubits.
     """
 
-    def __init__(self, single_qubit_operation, wire_controls, wire_index):
+    def __init__(self, single_qubit_operation, wire_controls):
         """
         :param single_qubit_operation: A 2x2 numpy unitary complex matrix.
-        :param wire_index: The index of the qubit the operation should be applied to.
         :param wire_controls: A list of booleans, one for each wire, determining if they control the operation. The
-        boolean for the wire the operation actually applies to is ignored. Make sure the number of entries matches the
+        value for the wire the operation actually applies to should be None. Make sure the number of entries matches the
         expected number of wires.
         """
-        if not (0 <= wire_index < len(wire_controls)):
-            raise ValueError("need 0 <= wire_index < len(wire_controls)")
         self.single_qubit_operation = single_qubit_operation
-        self.wire_index = wire_index
+        self.wire_index = wire_controls.index(None)
         self.wire_controls = wire_controls
 
     def interpolated_operation(self, t):
@@ -37,14 +34,14 @@ class QuantumOperation(object):
         :param t: The interpolation factor.
         """
         op = unitary_lerp(Rotation().as_pauli_operation(), self.single_qubit_operation, t)
-        return QuantumOperation(op, self.wire_controls, self.wire_index).full_operation()
+        return QuantumOperation(op, self.wire_controls).full_operation()
 
     def full_operation(self):
         """
         Returns this quantum operation's full matrix that, when multiplied by the full state vector for the circuit,
         applies the gate to the state.
 
-        >>> (QuantumOperation(np.mat([[2, 3], [4, 5]]), [True, None, False], 1).full_operation() ==\
+        >>> (QuantumOperation(np.mat([[2, 3], [4, 5]]), [True, None, False]).full_operation() ==\
             np.mat([[1, 0, 0, 0, 0, 0, 0, 0],\
                     [0, 2, 0, 3, 0, 0, 0, 0],\
                     [0, 0, 1, 0, 0, 0, 0, 0],\
@@ -54,7 +51,7 @@ class QuantumOperation(object):
                     [0, 0, 0, 0, 0, 0, 1, 0],\
                     [0, 0, 0, 0, 0, 4, 0, 5]])).all()
         True
-        >>> (QuantumOperation(np.mat([[2, 3], [4, 5]]), [False, None, True], 1).full_operation() ==\
+        >>> (QuantumOperation(np.mat([[2, 3], [4, 5]]), [False, None, True]).full_operation() ==\
             np.mat([[1, 0, 0, 0, 0, 0, 0, 0],\
                     [0, 1, 0, 0, 0, 0, 0, 0],\
                     [0, 0, 1, 0, 0, 0, 0, 0],\
@@ -151,6 +148,18 @@ class QuantumOperation(object):
             "\n")
 
     @staticmethod
+    def quantum_circuit_str(ops):
+        """
+        Returns a text representation of a sequence of operations.
+        :param ops: A list of QuantumOperation values.
+        """
+        cols = [string.split(e.__str__(), "\n") for e in ops]
+        w = len(cols)
+        h = len(cols[0])
+        rows = [[cols[c][r] for c in range(w)] for r in range(h)]
+        return string.join([string.join(rows[r], "") for r in range(h)], "\n")
+
+    @staticmethod
     def controlled_by_next_qbit(m):
         """
         Expands a quantum operation to apply to one more qubit, that comes after the wires it currently applies to,
@@ -183,7 +192,6 @@ class QuantumOperation(object):
                         else 0
                         for j in range(2*d)]
                        for i in range(2*d)])
-
 
     @staticmethod
     def controlled_by_prev_qbit(m):
@@ -257,7 +265,7 @@ class QuantumOperation(object):
         >>> expected = "─┬─\\n" +\
                        "─↓⃞─\\n" +\
                        "───\\n"
-        >>> QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [True, None, False], 1).operator_column_str()\
+        >>> QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [True, None, False]).operator_column_str()\
             == expected
         True
         >>> expected = "───\\n" +\
@@ -267,7 +275,7 @@ class QuantumOperation(object):
                        "─│─\\n" +\
                        "─┴─\\n" +\
                        "───\\n"
-        >>> QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [False, True, True, None, False, True, False], 3 \
+        >>> QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [False, True, True, None, False, True, False] \
             ).operator_column_str() == expected
         True
         """
@@ -284,5 +292,8 @@ class QuantumOperation(object):
         return string.join(["─" + c + "─" for c in col], "\n") + "\n"
 
     def __str__(self):
-        return self.operator_column_str() + "\n" + QuantumOperation.quantum_operation_str(self.full_operation())
+        return self.operator_column_str()
+
+    def __repr__(self):
+        return QuantumOperation.quantum_operation_str(self.full_operation())
 

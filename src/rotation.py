@@ -437,7 +437,7 @@ class Rotation(object):
         The mapping is continuous, and maps half-turns around each X, Y, and Z axis to the corresponding Pauli matrix.
 
         # Known X rotations
-        >>> np.all(Rotation(x=0.25).as_pauli_operation() == np.mat([[1j, 1], [1, 1j]]) * (1 - 1j) / 2)
+        >>> np.all(Rotation(x=0.25).as_pauli_operation() == np.mat([[0.5+0.5j, 0.5-0.5j], [0.5-0.5j, 0.5+0.5j]]))
         True
         >>> np.all(Rotation(x=0.5).as_pauli_operation() == np.mat([[0, 1], [1, 0]]))
         True
@@ -445,7 +445,7 @@ class Rotation(object):
         True
 
         # Known Y rotations
-        >>> np.all(Rotation(y=0.25).as_pauli_operation() == np.mat([[1, -1], [1, 1]]) * (1 + 1j) / 2)
+        >>> np.all(Rotation(y=0.25).as_pauli_operation() == np.mat([[0.5+0.5j, -0.5-0.5j], [0.5+0.5j, 0.5+0.5j]]))
         True
         >>> np.all(Rotation(y=0.5).as_pauli_operation() == np.mat([[0, -1j], [1j, 0]]))
         True

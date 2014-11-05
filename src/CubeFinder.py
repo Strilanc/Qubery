@@ -11,8 +11,39 @@ import cv2
 import cube
 import geom
 import imag
+import numpy as np
 from gates import QuantumOperation
 
+
+# entangle = [QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [None, False]),
+#             QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [None, False]),
+#             QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [True, None])]
+#
+# top_row = [QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [None, True]),
+#            QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [False, None])]
+#
+# mid_row = [QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [None, False]),
+#            QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [True, None]),
+#            QuantumOperation(Rotation(y=0.25).as_pauli_operation(), [None, False])]
+#
+# bot_row = [QuantumOperation(Rotation(y=0.75).as_pauli_operation(), [False, None]),
+#            QuantumOperation(Rotation(y=0.5).as_pauli_operation(), [True, None]),
+#            QuantumOperation(Rotation(x=0.75).as_pauli_operation(), [None, False])]
+#
+# lef_col = [QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [None, False]),
+#            QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [None, True]),
+#            QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [False, None])]
+#
+# mid_col = [QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [None, False]),
+#            QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [True, None]),
+#            QuantumOperation(Rotation(y=0.75).as_pauli_operation(), [None, False])]
+#
+# rit_col = [QuantumOperation(Rotation(x=0.75).as_pauli_operation(), [False, None]),
+#            QuantumOperation(Rotation(y=0.5).as_pauli_operation(), [None, True]),
+#            QuantumOperation(Rotation(y=0.75).as_pauli_operation(), [False, None])]
+#
+# print QuantumOperation.quantum_circuit_str(rit_col)
+# print QuantumOperation.quantum_operation_str(reduce(lambda a, e: e * a, [x.full_operation() for x in rit_col]))
 
 def scale_around(points, factor, center):
     """
@@ -132,15 +163,15 @@ class TrackSquare(object):
         """
         if self.is_tracking:
             draw_tracked_pose_top(self.track, draw_frame)
-        cv2.rectangle(draw_frame, (self.x, self.y), (self.x + qubit_size * 2, self.y + qubit_size * 2), (0, 0, 0), -1)
+        # cv2.rectangle(draw_frame, (self.x, self.y), (self.x + qubit_size * 2, self.y + qubit_size * 2), (0, 0, 0), -1)
         for i in range(2):
             c = self.op[i, 0]
             p = (self.x + qubit_size, self.y + qubit_size + qubit_size * 2 * i)
             p2 = (int(round(self.x + qubit_size + c.real * qubit_size)),
-                  int(round(self.y + qubit_size + qubit_size * 2 * i + c.imag * qubit_size)))
-            cv2.circle(draw_frame, p, qubit_size, (150, 150, 150))
-            cv2.circle(draw_frame, p, int(round(np.abs(c * qubit_size))), (0, 255, 255), -1)
-            cv2.line(draw_frame, p, p2, (0, 255, 0), 2)
+                  int(round(self.y + qubit_size + qubit_size * 2 * i - c.imag * qubit_size)))
+            # cv2.circle(draw_frame, p, qubit_size, (150, 150, 150))
+            # cv2.circle(draw_frame, p, int(round(np.abs(c * qubit_size))), (0, 255, 255), -1)
+            # cv2.line(draw_frame, p, p2, (0, 255, 0), 2)
         cv2.rectangle(draw_frame,
                       (self.x, self.y + self.h // 2),
                       (self.x + self.w, self.y + self.h),
@@ -151,6 +182,38 @@ class TrackSquare(object):
                       (self.x + self.w, self.y + self.h // 2),
                       (0, 0, 0) if self.is_controlled else (255, 255, 255),
                       1)
+
+
+def draw_state(draw_frame, state):
+    x = 0
+    y = 0
+    r = 30
+    d = r*2
+    outline_color = (150, 150, 150)
+    area_border_color = (0, 255, 255)
+    phase_line_color = (0, 255, 0)
+
+    state = state.tolist()
+    for i in range(len(state)):
+        c = complex(state[i][0])
+        dx = i % 4
+        dy = i // 4
+        p = (x + r + d * dx, y + r + d * dy)
+        q = (int(round(x + r + d * dx + c.real * r)),
+             int(round(y + r + d * dy - c.imag * r)))
+        cv2.circle(draw_frame, p, r, outline_color)
+        cv2.circle(draw_frame, p, int(round(np.abs(c * r))), area_border_color, -1)
+        cv2.line(draw_frame, p, q, phase_line_color, 2)
+    # cv2.rectangle(draw_frame,
+    #               (self.x, self.y + self.h // 2),
+    #               (self.x + self.w, self.y + self.h),
+    #               (0, 0, 0) if not self.is_controlled else (255, 255, 255),
+    #               1)
+    # cv2.rectangle(draw_frame,
+    #               (self.x, self.y),
+    #               (self.x + self.w, self.y + self.h // 2),
+    #               (0, 0, 0) if self.is_controlled else (255, 255, 255),
+    #               1)
 
 
 def run_loop():
@@ -166,6 +229,13 @@ def run_loop():
         raise RuntimeError("Failed to open video capture.")
 
     operations_in_progress = []
+    no_op = QuantumOperation(Rotation().as_pauli_operation(),
+                             [None, False, False, False]).full_operation()
+    no_state = np.mat([[1], [0], [0], [0],
+                       [0], [0], [0], [0],
+                       [0], [0], [0], [0],
+                       [0], [0], [0], [0]])
+    accumulated_operation = no_op
 
     while True:
         # Read next frame
@@ -185,16 +255,30 @@ def run_loop():
             tracked.update(frame_pose_measurements)
             tracked.draw(draw_frame, 5)
 
-        operations_to_apply = []
         for i in range(len(tracks)):
             t = tracks[i]
             for r in t.track.rotations:
-                op = QuantumOperation(r.as_pauli_operation(), [c.is_controlled for c in tracks], i)
+                op = QuantumOperation(
+                    r.as_pauli_operation(),
+                    [None if i == j else tracks[j].is_controlled for j in range(len(tracks))])
+                print op.__repr__()
                 print op.__str__()
-                operations_in_progress.append(op)
+                operations_in_progress.append([op, 0])
             t.track.rotations = []
 
-        cv2.imshow('debug', cv2.resize(draw_frame, (w*3, h*3)))
+        for p in operations_in_progress:
+            p[1] += 0.125
+        while len(operations_in_progress) > 0 and operations_in_progress[0][1] >= 1:
+            accumulated_operation = operations_in_progress[0][0].full_operation() * accumulated_operation
+            operations_in_progress.remove(operations_in_progress[0])
+
+        progress = reduce(lambda a, e: e * a,
+                          [r[0].interpolated_operation(r[1]) for r in operations_in_progress],
+                          accumulated_operation)
+        draw_frame = cv2.resize(draw_frame, (w*3, h*3))
+        draw_state(draw_frame, progress * no_state)
+
+        cv2.imshow('debug', draw_frame)
 
         if cv2.waitKey(1) == 27 or capture is None:
             break
