@@ -39,6 +39,20 @@ Notes
 
 **Quordination Circuits**
 
+Entangler
+
+```
+─↑⃞──↺⃞──┬─
+───────X⃞─
+
+┌         ┐
+│ ↘ ↗ · · │
+│ · · ↖ ↗ │
+│ · · ↘ ↗ │
+│ ↖ ↗ · · │
+└         ┘
+```
+
 Top Row
 
 ```
