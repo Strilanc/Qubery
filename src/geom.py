@@ -8,7 +8,6 @@ Geometric utility methods used by cube finding program.
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
 import numpy as np
 import math
-import string
 
 
 def tensor_product(m1, m2):

@@ -17,6 +17,80 @@ import math as math_rad
 tau = math_rad.pi * 2
 
 
+def acos(v):
+    """
+    Returns an angle fraction which, when given to trig_tau.cos, returns (approximately) the given value.
+    :param v: A value between -1 and 1.
+
+    >>> abs(acos(0.25) - 0.20978468837241687811452) < 0.1 ** 14
+    True
+
+    # inverts arbitrary values approximately
+    >>> abs(cos(acos(1/3)) - 1/3) < 0.1 ** 14
+    True
+    >>> abs(acos(cos(1/3)) - 1/3) < 0.1 ** 14
+    True
+
+    # inverts special values exactly
+    >>> cos(acos(1)) == 1
+    True
+    >>> cos(acos(0)) == 0
+    True
+    >>> cos(acos(-1)) == -1
+    True
+    """
+
+    # Exact
+    if v == 1:
+        return 0
+    if v == 0:
+        return 0.25
+    if v == -1:
+        return 0.5
+
+    # Approximate
+    return math_rad.acos(v) / tau
+
+
+def sin_scale_ratio(f, s):
+    """
+    Returns the ratio sin(f s) / sin(f), handling the near-zero values carefully to avoid singularities.
+
+    :param f: The angle argument, in fractions of a turn, which will be scaled in the numerator but not the denominator.
+    :param s: The scaling factor to apply to the angle before sin-ing it in the numerator.
+
+    >>> sin_scale_ratio(0, 1/8) == 1/8
+    True
+    >>> sin_scale_ratio(0, 1/4) == 1/4
+    True
+
+    >>> abs(sin_scale_ratio(1/3, 1/8) - 0.298858490722684508034630) < 0.1 ** 14
+    True
+
+    # precision near zero and switch to approximation
+    >>> abs(sin_scale_ratio(0.00110, 1/8) - 0.12500097964076610394) < 0.1 ** 14
+    True
+    >>> abs(sin_scale_ratio(0.00090, 1/8) - 0.12500065579137886541) < 0.1 ** 13
+    True
+    >>> abs(sin_scale_ratio(0.00021, 1/8) - 0.12500003570407218730) < 0.1 ** 13
+    True
+    >>> abs(sin_scale_ratio(0.00019, 1/8) - 0.12500002922714192262) < 0.1 ** 13
+    True
+    >>> abs(sin_scale_ratio(0.00011, 1/8) - 0.12500000979635397322) < 0.1 ** 14
+    True
+    >>> abs(sin_scale_ratio(0.00009, 1/8) - 0.12500000655788972983) < 0.1 ** 14
+    True
+    """
+
+    # Near zero, switch to an approximation based on the first two Taylor series terms.
+    # This avoids an explosion in floating point error due to the division by tiny values.
+    if abs(f < 0.0002):
+        d = (tau * f) ** 2 / 6
+        return s * (1 - d * s ** 2) / (1 - d)
+
+    return sin(f * s) / sin(f)
+
+
 def cos(p):
     """
     Returns the cosine of the angle corresponding to a p'th of a turn.

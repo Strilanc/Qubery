@@ -6,31 +6,8 @@ Contains the Quaternion type.
 
 from __future__ import division
 import math
+import trig_tau
 import string
-
-
-def scaled_sin_ratio(theta, factor):
-    """
-    Returns the ratio sin(θ f) / sin(θ), handling the near-zero values carefully to avoid singularities.
-    :param theta: An angle in radians.
-    :param factor: A scaling factor for the numerator's angle.
-
-    >>> scaled_sin_ratio(0, 1/8) == 1/8
-    True
-    >>> scaled_sin_ratio(0, 1/4) == 1/4
-    True
-    >>> abs(scaled_sin_ratio(1, 1/8) - 0.148163) < 0.0001
-    True
-
-    # continuous around approximation
-    >>> abs(scaled_sin_ratio(0.0011, 1/8) - 0.1250000248144) < 0.000000000001
-    True
-    >>> abs(scaled_sin_ratio(0.0009, 1/8) - 0.1250000166113) < 0.000000000001
-    True
-    """
-    if abs(theta < 0.001):
-        return factor * (1 - (theta * factor) ** 2 / 6) / (1 - theta ** 2 / 6)
-    return math.sin(theta*factor) / math.sin(theta)
 
 
 class Quaternion(object):
@@ -380,9 +357,9 @@ class Quaternion(object):
                 - Quaternion(0, 1)) < 0.00001
         True
         """
-        theta = math.acos(self.dot(other))
-        a = scaled_sin_ratio(theta, 1-t)
-        b = scaled_sin_ratio(theta, t)
+        theta = trig_tau.acos(self.dot(other))
+        a = trig_tau.sin_scale_ratio(theta, 1-t)
+        b = trig_tau.sin_scale_ratio(theta, t)
         return self*a + other*b
 
     def norm(self):

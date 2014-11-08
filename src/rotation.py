@@ -6,7 +6,7 @@ Utility methods and classes related to rotations.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
-from quaternion import *
+from quaternion import Quaternion
 import cmath
 import math
 import numpy as np
@@ -146,9 +146,9 @@ def unitary_lerp(u1, u2, t):
         p2 *= -1
         n2 *= -1
         dot *= -1
-    theta = math.acos(max(min(dot, 1), -1))
-    c1 = scaled_sin_ratio(theta, 1-t)
-    c2 = scaled_sin_ratio(theta, t)
+    theta = trig_tau.acos(max(min(dot, 1), -1))
+    c1 = trig_tau.sin_scale_ratio(theta, 1-t)
+    c2 = trig_tau.sin_scale_ratio(theta, t)
     n3 = (n1*c1 + n2*c2)
 
     # Angular interpolation of phase part
