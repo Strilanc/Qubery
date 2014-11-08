@@ -163,15 +163,6 @@ class TrackSquare(object):
         """
         if self.is_tracking:
             draw_tracked_pose_top(self.track, draw_frame)
-        # cv2.rectangle(draw_frame, (self.x, self.y), (self.x + qubit_size * 2, self.y + qubit_size * 2), (0, 0, 0), -1)
-        for i in range(2):
-            c = self.op[i, 0]
-            p = (self.x + qubit_size, self.y + qubit_size + qubit_size * 2 * i)
-            p2 = (int(round(self.x + qubit_size + c.real * qubit_size)),
-                  int(round(self.y + qubit_size + qubit_size * 2 * i - c.imag * qubit_size)))
-            # cv2.circle(draw_frame, p, qubit_size, (150, 150, 150))
-            # cv2.circle(draw_frame, p, int(round(np.abs(c * qubit_size))), (0, 255, 255), -1)
-            # cv2.line(draw_frame, p, p2, (0, 255, 0), 2)
         cv2.rectangle(draw_frame,
                       (self.x, self.y + self.h // 2),
                       (self.x + self.w, self.y + self.h),
@@ -229,6 +220,7 @@ def run_loop():
         raise RuntimeError("Failed to open video capture.")
 
     operations_in_progress = []
+    all_operations = []
     no_op = QuantumOperation(Rotation().as_pauli_operation(),
                              [None, False, False, False]).full_operation()
     no_state = np.mat([[1], [0], [0], [0],
@@ -264,6 +256,8 @@ def run_loop():
                 print op.__repr__()
                 print op.__str__()
                 operations_in_progress.append([op, 0])
+                all_operations.append(op)
+                print QuantumOperation.quantum_circuit_str(all_operations)
             t.track.rotations = []
 
         for p in operations_in_progress:

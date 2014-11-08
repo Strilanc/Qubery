@@ -282,14 +282,16 @@ class QuantumOperation(object):
         controls = [self.wire_index] + [i for i in range(len(self.wire_controls)) if self.wire_controls[i]]
         start = min(controls)
         end = max(controls)
-        col = [self.gate_char() + "⃞" if i == self.wire_index
+        box = "⃞"
+        wire = "─"
+        col = [self.gate_char() + box if i == self.wire_index
                else "┬" if i == start
                else "┴" if i == end
                else "┼" if self.wire_controls[i]
                else "│" if start < i < end
-               else "─"
+               else wire
                for i in range(len(self.wire_controls))]
-        return string.join(["─" + c + "─" for c in col], "\n") + "\n"
+        return string.join([wire + c + wire for c in col], "\n") + "\n"
 
     def __str__(self):
         return self.operator_column_str()
