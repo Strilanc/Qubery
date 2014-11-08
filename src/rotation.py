@@ -10,126 +10,7 @@ from quaternion import *
 import cmath
 import math
 import numpy as np
-
-
-tau = math.pi * 2
-
-
-def cos_tau(p):
-    """
-    Returns the cosine of the angle corresponding to a p'th of a turn.
-    :param p: The proportion of a full turn to rotate <1, 0> by before returning the resulting vector's x coordinate.
-
-    >>> cos_tau(0)
-    1
-    >>> cos_tau(0.25)
-    0
-    >>> cos_tau(0.5)
-    -1
-    >>> cos_tau(0.75)
-    0
-    >>> cos_tau(1)
-    1
-    >>> abs(cos_tau(0.125) - math.sqrt(2)/2) < 0.000001
-    True
-    """
-    p %= 1
-    if p == 0:
-        return 1
-    if p == 0.25:
-        return 0
-    if p == 0.5:
-        return -1
-    if p == 0.75:
-        return 0
-    return math.cos(p*tau)
-
-
-def sin_tau(p):
-    """
-    Returns the sine of the angle corresponding to a p'th of a turn.
-    :param p: The proportion of a full turn to rotate <1, 0> by before returning the resulting vector's y coordinate.
-
-    >>> sin_tau(0)
-    0
-    >>> sin_tau(0.25)
-    1
-    >>> sin_tau(0.5)
-    0
-    >>> sin_tau(0.75)
-    -1
-    >>> sin_tau(1)
-    0
-    >>> abs(sin_tau(0.125) - math.sqrt(2)/2) < 0.000001
-    True
-    """
-    return cos_tau(p-0.25)
-
-
-def atan2_tau(y, x):
-    """
-    Determines the angle, measured in fractions of a complete turns instead of in radians, to the given coordinates.
-    Angles start from the right and rotate counter-clockwise, so +x-ward is 0, and +y-ward is 1/4.
-
-    :param y: The y coordinate.
-    :param x: The x coordinate.
-
-    >>> atan2_tau(y=0, x=1) == 0.125*0
-    True
-    >>> atan2_tau(y=1, x=1) == 0.125*1
-    True
-    >>> atan2_tau(y=1, x=0) == 0.125*2
-    True
-    >>> atan2_tau(y=1, x=-1) == 0.125*3
-    True
-    >>> atan2_tau(y=0, x=-1) == 0.125*-4
-    True
-    >>> atan2_tau(y=-1, x=-1) == 0.125*-3
-    True
-    >>> atan2_tau(y=-1, x=0) == 0.125*-2
-    True
-    >>> atan2_tau(y=-1, x=1) == 0.125*-1
-    True
-    """
-    if y == 0 and x > 0:
-        return 0
-    if x == y and y > 0:
-        return 0.125
-    if x == 0 and y > 0:
-        return 0.25
-    if x == -y and y > 0:
-        return 0.375
-    if y == 0 and x < 0:
-        return -0.5
-    if x == y and y < 0:
-        return -0.375
-    if x == 0 and y < 0:
-        return -0.25
-    if x == -y and y < 0:
-        return -0.125
-
-    return math.atan2(y, x) / tau
-
-
-def exp_i_tau(p):
-    """
-    Returns Euler's constant e to the power of i times tau times p.
-    :param p: The proportion of a full turn to rotate 1+0i.
-
-    >>> exp_i_tau(0) == 1
-    True
-    >>> exp_i_tau(0.25) == 1j
-    True
-    >>> exp_i_tau(0.5) == -1
-    True
-    >>> exp_i_tau(0.75) == -1j
-    True
-    >>> exp_i_tau(1) == 1
-    True
-    >>> abs(exp_i_tau(0.125) - math.sqrt(2)/2 * (1 + 1j)) < 0.000001
-    True
-    """
-    return cos_tau(p) + 1j * sin_tau(p)
+import trig_tau
 
 
 def str_fraction(v):
@@ -148,85 +29,6 @@ def str_fraction(v):
     if v == 0.75:
         return "¾"
     return str(v)
-
-
-def sinc(theta):
-    """
-    The cardinal sine function, equal to sin(x)/x.
-    :param theta: The angle, in radians.
-
-    # known values
-    >>> sinc(0) == 1
-    True
-    >>> abs(sinc(math.pi)) < 0.000000001
-    True
-    >>> abs(sinc(-math.pi)) < 0.000000001
-    True
-    >>> abs(sinc(math.pi/2) - 2/math.pi) < 0.000000001
-    True
-    >>> abs(sinc(3*math.pi/2) - -2/3/math.pi) < 0.000000001
-    True
-
-    # even-ness
-    >>> sinc(0.0011) == sinc(-0.0011)
-    True
-    >>> sinc(0.0009) == sinc(-0.0009)
-    True
-    >>> sinc(math.pi/2) == sinc(-math.pi/2)
-    True
-    >>> sinc(3*math.pi/2) == sinc(-3*math.pi/2)
-    True
-
-    # continuity around switch to approximation
-    >>> abs(sinc(0.0011) - 0.999999798333345) < 0.0000000000001
-    True
-    >>> abs(sinc(0.0009) - 0.999999865000005) < 0.0000000000001
-    True
-    """
-
-    # Near zero, avoid the singularity by using an approximation based on the first two Taylor series terms
-    if abs(theta) < 0.001:
-        return 1 - theta**2/6
-    return math.sin(theta) / theta
-
-
-def sinc_tau(turns):
-    """
-    The cardinal sine function, in fractions of a turn, equal to sin_tau(x)/x.
-    Note that sinc_tau(x) is NOT equal to sinc(τ x), it's equal to τ sinc(τ x).
-    :param turns: The angle, in fractions of a turn.
-
-    # known values
-    >>> abs(sinc_tau(-0.75) - -4/3) < 0.0000001
-    True
-    >>> sinc_tau(-0.5) == 0
-    True
-    >>> sinc_tau(-0.25) == 4
-    True
-    >>> abs(sinc_tau(-0.125) - 4*math.sqrt(2)) < 0.0000001
-    True
-    >>> sinc_tau(0) == tau
-    True
-    >>> abs(sinc_tau(0.125) - 4*math.sqrt(2)) < 0.0000001
-    True
-    >>> sinc_tau(0.25) == 4
-    True
-    >>> sinc_tau(0.5) == 0
-    True
-    >>> abs(sinc_tau(0.75) - -4/3) < 0.0000001
-    True
-
-    # continuity around switch to approximation
-    >>> abs(sinc(0.0011) - 0.999999798333345) < 0.0000000000001
-    True
-    >>> abs(sinc(0.0009) - 0.999999865000005) < 0.0000000000001
-    True
-    """
-
-    # Near zero, avoid the singularity by using an approximation based on the first two Taylor series terms
-    if abs(turns) < 0.001:
-        return tau - turns**2 * tau**3 / 6
-    return sin_tau(turns) / turns
 
 
 def smooth_near_quarter_turn(turns):
@@ -259,7 +61,7 @@ def unitary_breakdown(m):
     """
     Breaks a 2x2 unitary matrix into quaternion-esqe Ii, X, Y, and Z components as well as a phase component.
     :param m: The 2x2 unitary matrix to break down.
-    :return: (t, x, y, z, complex_unit) such that m = complex_unit * (<t, x, y, z> . <Ii, X, Y, Z>)
+    :return: (t, x, y, z, c) where m = c * (<t, x, y, z> . <Ii, X, Y, Z>), c is a unit complex, and the others are real.
 
     >>> unitary_breakdown(Rotation().as_pauli_operation()) == (1, 0, 0, 0, -1j)
     True
@@ -270,16 +72,16 @@ def unitary_breakdown(m):
     >>> unitary_breakdown(Rotation(z=0.5).as_pauli_operation()) == (0, 0, 0, 1, 1)
     True
     >>> np.sum(np.abs(np.array(unitary_breakdown(Rotation(x=0.25).as_pauli_operation())) \
-        - np.array((cos_tau(0.125), sin_tau(0.125), 0, 0, exp_i_tau(-0.125))))) < 0.00001
+        - np.array((trig_tau.cos(0.125), trig_tau.sin(0.125), 0, 0, trig_tau.expi(-0.125))))) < 0.00001
     True
     >>> np.sum(np.abs(np.array(unitary_breakdown(Rotation(y=0.25).as_pauli_operation())) \
-        - np.array((cos_tau(0.125), 0, sin_tau(0.125), 0, exp_i_tau(-0.125))))) < 0.00001
+        - np.array((trig_tau.cos(0.125), 0, trig_tau.sin(0.125), 0, trig_tau.expi(-0.125))))) < 0.00001
     True
     >>> np.sum(np.abs(np.array(unitary_breakdown(Rotation(z=0.25).as_pauli_operation())) \
-        - np.array((cos_tau(0.125), 0, 0, sin_tau(0.125), exp_i_tau(-0.125))))) < 0.00001
+        - np.array((trig_tau.cos(0.125), 0, 0, trig_tau.sin(0.125), trig_tau.expi(-0.125))))) < 0.00001
     True
     >>> np.sum(np.abs(np.array(unitary_breakdown(Rotation(x=0.25).then(Rotation(z=0.25)).as_pauli_operation())) \
-        - np.array((0.5, 0.5, 0.5, 0.5, exp_i_tau(-1/12))))) < 0.00001
+        - np.array((0.5, 0.5, 0.5, 0.5, trig_tau.expi(-1/12))))) < 0.00001
     True
     """
 
@@ -309,7 +111,7 @@ def unitary_lerp(u1, u2, t):
     :param t: The interpolation factor, ranging from 0 to 1.
 
     >>> np.sum(np.abs((unitary_lerp(np.mat([[1, 0], [0, 1]]), np.mat([[1, 0], [0, 1]]) * 1j, 0.5) \
-            - np.mat([[1, 0], [0, 1]]) * exp_i_tau(1/8)))) < 0.000001
+            - np.mat([[1, 0], [0, 1]]) * trig_tau.expi(1/8)))) < 0.000001
     True
     >>> (unitary_lerp(Rotation(x=0.5).as_pauli_operation(), Rotation(z=0.5).as_pauli_operation(), 0.5) \
             == np.mat([[1,1],[1,-1]])/math.sqrt(2)).all()
@@ -352,7 +154,7 @@ def unitary_lerp(u1, u2, t):
     # Angular interpolation of phase part
     phase_angle_1 = cmath.log(p1).imag
     phase_angle_2 = cmath.log(p2).imag
-    phase_drift = (phase_angle_2 - phase_angle_1 + math.pi) % tau - math.pi
+    phase_drift = (phase_angle_2 - phase_angle_1 + math.pi) % trig_tau.tau - math.pi
     phase_angle_3 = phase_angle_1 + phase_drift * t
     p3 = cmath.exp(phase_angle_3 * 1j)
 
@@ -553,7 +355,7 @@ class Rotation(object):
         pv = (x*px + y*py + z*pz)/theta
 
         # Magic!
-        return (p1+pv + exp_i_tau(theta) * (p1-pv)) / 2
+        return (p1+pv + trig_tau.expi(theta) * (p1-pv)) / 2
 
     def as_quaternion(self):
         """
@@ -575,8 +377,8 @@ class Rotation(object):
         t = self.turns()
         if t < 0.000001:
             return Quaternion(1)
-        c = cos_tau(t/2)
-        s = sin_tau(t/2) / t
+        c = trig_tau.cos(t/2)
+        s = trig_tau.sin(t/2) / t
         return Quaternion(c, s * self.v[0], s * self.v[1], s * self.v[2])
 
     @staticmethod
@@ -612,9 +414,9 @@ class Rotation(object):
         >>> Rotation.from_quaternion(Rotation(z=0.5).as_quaternion())
         Z:½
         """
-        turns = 2*atan2_tau(math.sqrt(q.x**2 + q.y**2 + q.z**2), q.w)
+        turns = 2*trig_tau.atan2(math.sqrt(q.x**2 + q.y**2 + q.z**2), q.w)
         smoothed_turns = smooth_near_quarter_turn(turns)
-        d = sinc_tau(smoothed_turns/2)/2
+        d = trig_tau.sinc(smoothed_turns/2)/2
         x, y, z = q.x/d, q.y/d, q.z/d
         sx, sy, sz = smooth_near_quarter_turn(x), smooth_near_quarter_turn(y), smooth_near_quarter_turn(z)
         return Rotation(sx, sy, sz)

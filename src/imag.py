@@ -8,7 +8,7 @@ Image related utility methods used by cube finding program.
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
 from geom import *
 import cv2
-import rotation
+import trig_tau
 import cube
 
 
@@ -524,7 +524,7 @@ def measure_cross_at(frame, color, center):
         # Recover cartesian offsets
         e, r = p
         d = math.exp(e/80)
-        dx, dy = d * rotation.cos_tau(r/h), d * rotation.sin_tau(r/h)
+        dx, dy = d * trig_tau.cos(r/h), d * trig_tau.sin(r/h)
         x1, y1 = center[0] + dx, center[1] + dy
         x2, y2 = center[0] - dx, center[1] - dy
 
