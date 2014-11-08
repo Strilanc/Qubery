@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# coding=utf-8
 
 """
 Classes and utilities related to representing and tracking the orientation of a checkerboard cube with known colors.
@@ -160,9 +161,6 @@ def classify_color_pair_as_side(color_pair):
     return min(Sides, key=lambda e: color_pair_distance((e.color1, e.color2), color_pair))
 
 
-# red black measurement:
-#[[ 46  36 100]
-# [ 46  22  13]]
 Sides = [Front, Top, Right, Back, Bottom, Left]
 
 

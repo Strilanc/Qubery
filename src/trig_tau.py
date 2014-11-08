@@ -207,7 +207,7 @@ def atan2(y, x):
 
 def expi(f):
     """
-    Returns Euler's constant e to the power of i times tau times f.
+    Returns e^(iτf), where e is Euler's constant and i is the square root of negative 1
 
     :param f: The angle argument, in fractions of a turn.
 
