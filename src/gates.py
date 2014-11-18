@@ -6,7 +6,6 @@ Geometric utility methods used by cube finding program.
 """
 
 from __future__ import division  # so 1/2 returns 0.5 instead of 0
-import numpy as np
 import geom
 import string
 from rotation import *
@@ -258,14 +257,14 @@ class QuantumOperation(object):
 
         return "?"
 
-    def operator_column_str(self):
+    def operator_column_str_compact(self):
         """
         Returns a circuit-looking text representation of this gate.
 
         >>> expected = "─┬─\\n" +\
                        "─↓⃞─\\n" +\
                        "───\\n"
-        >>> QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [True, None, False]).operator_column_str()\
+        >>> QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [True, None, False]).operator_column_str_compact()\
             == expected
         True
         >>> expected = "───\\n" +\
@@ -276,7 +275,7 @@ class QuantumOperation(object):
                        "─┴─\\n" +\
                        "───\\n"
         >>> QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [False, True, True, None, False, True, False] \
-            ).operator_column_str() == expected
+            ).operator_column_str_compact() == expected
         True
         """
         controls = [self.wire_index] + [i for i in range(len(self.wire_controls)) if self.wire_controls[i]]
@@ -292,6 +291,80 @@ class QuantumOperation(object):
                else wire
                for i in range(len(self.wire_controls))]
         return string.join([wire + c + wire for c in col], "\n") + "\n"
+
+    def operator_column_str(self):
+        """
+        Returns a circuit-looking text representation of this gate.
+
+        >>> expected = "┌─┐\\n" +\
+                       "┤X├\\n" +\
+                       "└─┘\\n"
+        >>> QuantumOperation(Rotation(x=0.5).as_pauli_operation(), [None]).operator_column_str()\
+            == expected
+        True
+        >>> expected = "   \\n" +\
+                       "─┬─\\n" +\
+                       "┌┴┐\\n" +\
+                       "┤↓├\\n" +\
+                       "└─┘\\n" +\
+                       "───\\n" +\
+                       "   \\n"
+        >>> QuantumOperation(Rotation(x=0.25).as_pauli_operation(), [True, None, False]).operator_column_str()\
+            == expected
+        True
+        >>> expected = "   \\n" +\
+                       "───\\n" +\
+                       "   \\n" +\
+                       "─┬─\\n" +\
+                       " │ \\n" +\
+                       "─┼─\\n" +\
+                       "┌┴┐\\n" +\
+                       "┤↺├\\n" +\
+                       "└┬┘\\n" +\
+                       "─┴─\\n" +\
+                       "   \\n" +\
+                       "───\\n" +\
+                       "   \\n"
+        >>> QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [False, True, True, None, True, False] \
+            ).operator_column_str() == expected
+        True
+        >>> expected = "   \\n" +\
+                       "─┬─\\n" +\
+                       " │ \\n" +\
+                       "───\\n" +\
+                       "┌┴┐\\n" +\
+                       "┤↺├\\n" +\
+                       "└┬┘\\n" +\
+                       "───\\n" +\
+                       " │ \\n" +\
+                       "─┴─\\n" +\
+                       "   \\n"
+        >>> QuantumOperation(Rotation(z=0.25).as_pauli_operation(), [True, False, None, False, True] \
+            ).operator_column_str() == expected
+        True
+        """
+
+        controls = [self.wire_index] + [i for i in range(len(self.wire_controls)) if self.wire_controls[i]]
+        start = min(controls)
+        end = max(controls)
+        col_around = ["┌┴┐" if i == self.wire_index and start < self.wire_index
+                      else "└┬┘" if i == self.wire_index + 1 and self.wire_index < end
+                      else "┌─┐" if i == self.wire_index
+                      else "└─┘" if i == self.wire_index + 1
+                      else " │ " if start < i <= end
+                      else "   "
+                      for i in range(len(self.wire_controls) + 1)]
+        col_through = ["┤" + self.gate_char() + "├" if i == self.wire_index
+                       else "─┬─" if i == start
+                       else "─┴─" if i == end
+                       else "─┼─" if self.wire_controls[i]
+                       else "───" if start < i <= end
+                       else "───"
+                       for i in range(len(self.wire_controls))]
+        cols = [col
+                for zipped in zip(col_around, col_through + [""])
+                for col in zipped]
+        return string.join(cols, "\n")
 
     def __str__(self):
         return self.operator_column_str()
