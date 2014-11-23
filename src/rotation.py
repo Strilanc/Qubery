@@ -325,37 +325,32 @@ class Rotation(object):
                  * Rotation(y=0.5).as_pauli_operation() \
                  == np.identity(2) * -1j)
         True
+
+        # Hadamard gate is a half turn around the X+Z axis
+        >>> np.all(abs(Rotation(x=math.sqrt(0.125), z=math.sqrt(0.125)).as_pauli_operation() \
+                - np.mat([[1, 1], [1, -1]]) / math.sqrt(2)) < 0.1 ** 14)
+        True
+        >>> np.all(abs(Rotation(x=-math.sqrt(0.125), z=-math.sqrt(0.125)).as_pauli_operation() \
+                - np.mat([[1, 1], [1, -1]]) / math.sqrt(2)) < 0.1 ** 14)
+        True
         """
         x, y, z = self.v
 
-        # flip axis vector if its first non-zero coordinate is negative, so phase correction plays out correctly
-        s = x if x != 0 \
-            else y if y != 0 \
-            else z
-        if s < 0:
-            ux, uy, uz = self.axis()
-            x -= ux
-            y -= uy
-            z -= uz
+        s = math.copysign(1, 11*x + 13*y + 17*z)  # Put the phase correction discontinuity on an awkward plane
         theta = math.sqrt(x**2 + y**2 + z**2)
+        v = x * np.mat([[0, 1], [1, 0]]) +\
+            y * np.mat([[0, -1j], [1j, 0]]) +\
+            z * np.mat([[1, 0], [0, -1]])
 
-        if theta < 0.00001:
-            return np.identity(2)
+        ci = 1 + trig_tau.expi(s * theta)
 
-        # Pauli matrices
-        p1 = np.identity(2)
-        px = np.mat([[0, 1],
-                     [1, 0]])
-        py = np.mat([[0, -1j],
-                     [1j, 0]])
-        pz = np.mat([[1, 0],
-                     [0, -1]])
+        if theta < 0.01:
+            # Near zero, use an alternate expression that doesn't require a division
+            cv = trig_tau.sin(theta/2) * trig_tau.sinc(theta/2) - 1j * trig_tau.sinc(theta)
+        else:
+            cv = (1 - trig_tau.expi(s * theta)) / theta
 
-        # Pauli vector for rotation
-        pv = (x*px + y*py + z*pz)/theta
-
-        # Magic!
-        return (p1+pv + trig_tau.expi(theta) * (p1-pv)) / 2
+        return (np.identity(2) * ci + v * s * cv)/2
 
     def as_quaternion(self):
         """
