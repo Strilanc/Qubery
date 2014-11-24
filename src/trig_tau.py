@@ -112,14 +112,8 @@ def cos(p):
     p %= 1
 
     # Exact
-    if p == 0:
-        return 1
-    if p == 0.25:
-        return 0
-    if p == 0.5:
-        return -1
-    if p == 0.75:
-        return 0
+    if p % 0.25 == 0:
+        return (1j ** int(p*4)).real
 
     # Approximate
     return math_rad.cos(p*tau)
