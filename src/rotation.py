@@ -336,21 +336,20 @@ class Rotation(object):
         """
         x, y, z = self.v
 
-        s = math.copysign(1, 11*x + 13*y + 17*z)  # Put the phase correction discontinuity on an awkward plane
+        s = math.copysign(1, 11*x + 13*y + 17*z)  # phase correction discontinuity on an awkward plane
         theta = math.sqrt(x**2 + y**2 + z**2)
         v = x * np.mat([[0, 1], [1, 0]]) +\
             y * np.mat([[0, -1j], [1j, 0]]) +\
             z * np.mat([[1, 0], [0, -1]])
 
         ci = 1 + trig_tau.expi(s * theta)
-
-        if theta < 0.01:
-            # Near zero, use an alternate expression that doesn't require a division
-            cv = trig_tau.sin(theta/2) * trig_tau.sinc(theta/2) - 1j * trig_tau.sinc(theta)
+        if theta < 0.001:
+             # Near zero, use an alternate expression that doesn't require a division
+            cv = trig_tau.sin(theta/2) * trig_tau.sinc(theta/2) - 1j * s * trig_tau.sinc(theta)
         else:
             cv = (1 - trig_tau.expi(s * theta)) / theta
 
-        return (np.identity(2) * ci + v * s * cv)/2
+        return (np.identity(2) * ci + s * v * cv)/2
 
     def as_quaternion(self):
         """
